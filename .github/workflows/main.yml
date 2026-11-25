@@ -8,11 +8,16 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 120
     steps:
+      - name: Allow long file names on Windows
+        run: git config --system core.longpaths true
+
       - name: Get the 0.2.45 release source (with its pinned components)
         uses: actions/checkout@v4
         with:
           ref: 0.2.45
-          submodules: recursive
+          # true, not recursive: one optional sub-project points at a version that no longer exists
+          # online, and the plugin build does not use it.
+          submodules: true
 
       - name: Add the Steam Frame haptic bindings
         shell: python
@@ -37,18 +42,18 @@ jobs:
         run: git diff --stat
 
       - name: Configure
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B C:/b -A x64
 
       - name: Build the plugin
-        run: cmake --build build --config Release --target cyberpunkvrport_stereo --parallel
+        run: cmake --build C:/b --config Release --target cyberpunkvrport_stereo --parallel
 
       - name: List the result
         shell: pwsh
-        run: Get-ChildItem build/bin -Recurse -Filter cyberpunkvrport.dll | Select-Object FullName, Length
+        run: Get-ChildItem C:/b/bin -Recurse -Filter cyberpunkvrport.dll | Select-Object FullName, Length
 
       - name: Upload the DLL
         uses: actions/upload-artifact@v4
         with:
           name: cyberpunkvrport-0.2.45-steamframe-haptics
-          path: build/bin/**/cyberpunkvrport.dll
+          path: C:/b/bin/**/cyberpunkvrport.dll
           if-no-files-found: error
