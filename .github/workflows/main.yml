@@ -38,6 +38,22 @@ jobs:
           open(p, 'wb').write(s.replace(needle, add))
           print('Patched.')
 
+      - name: Skip a developer-tools folder this release forgot to include
+        shell: python
+        run: |
+          p = 'CMakeLists.txt'
+          s = open(p, 'rb').read()
+          old = b'add_subdirectory(tools/rtti_dump)'
+          i = s.find(old)
+          if s.count(old) == 1 and b'if(EXISTS' not in s[max(0, i - 120):i]:
+              new = (b'if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/rtti_dump/CMakeLists.txt")\n'
+                     b'    add_subdirectory(tools/rtti_dump)\n'
+                     b'endif()')
+              open(p, 'wb').write(s.replace(old, new))
+              print('Guarded the rtti_dump line.')
+          else:
+              print('Nothing to do.')
+
       - name: Show the change
         run: git diff --stat
 
