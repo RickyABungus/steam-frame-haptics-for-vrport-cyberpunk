@@ -19,6 +19,12 @@ jobs:
           # online, and the plugin build does not use it.
           submodules: true
 
+      - name: Use the game 2.5 RED4ext SDK this code was written for
+        run: |
+          git -C externals/RED4ext.SDK fetch --depth 1 https://github.com/WopsS/RED4ext.SDK.git 26cf86702647c06bae2f1a92cb5affc64ab65d23
+          git -C externals/RED4ext.SDK checkout --force FETCH_HEAD
+          git -C externals/RED4ext.SDK log -1 --format="SDK is now at %h %ad %s"
+
       - name: Add the Steam Frame haptic bindings
         shell: python
         run: |
