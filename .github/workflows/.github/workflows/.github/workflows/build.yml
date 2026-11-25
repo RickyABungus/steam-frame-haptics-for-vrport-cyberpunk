@@ -1,0 +1,54 @@
+name: Build 0.2.45 with Steam Frame haptics fix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - name: Get the 0.2.45 release source (with its pinned components)
+        uses: actions/checkout@v4
+        with:
+          ref: 0.2.45
+          submodules: recursive
+
+      - name: Add the Steam Frame haptic bindings
+        shell: python
+        run: |
+          import re, sys
+          p = 'src/Runtimes/OpenXRManager.cpp'
+          s = open(p, 'rb').read()
+          nl = b'\r\n' if b'\r\n' in s else b'\n'
+          needle = b'{ m_steamFrameActions.bumper,"/user/hand/right/input/bumper/click" },'
+          if re.search(rb'(?s)m_steamFrameActions\.bumper,"/user/hand/right.{0,300}?m_hapticAction', s):
+              print('Already patched, nothing to do.'); sys.exit(0)
+          if s.count(needle) != 1:
+              sys.exit('Expected line not found exactly once; the source changed, stop here.')
+          ind = b' ' * 16
+          add = (needle + nl +
+                 ind + b'{ m_hapticAction,            "/user/hand/left/output/haptic" },' + nl +
+                 ind + b'{ m_hapticAction,            "/user/hand/right/output/haptic" },')
+          open(p, 'wb').write(s.replace(needle, add))
+          print('Patched.')
+
+      - name: Show the change
+        run: git diff --stat
+
+      - name: Configure
+        run: cmake -S . -B build -A x64
+
+      - name: Build the plugin
+        run: cmake --build build --config Release --target cyberpunkvrport_stereo --parallel
+
+      - name: List the result
+        shell: pwsh
+        run: Get-ChildItem build/bin -Recurse -Filter cyberpunkvrport.dll | Select-Object FullName, Length
+
+      - name: Upload the DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: cyberpunkvrport-0.2.45-steamframe-haptics
+          path: build/bin/**/cyberpunkvrport.dll
+          if-no-files-found: error
